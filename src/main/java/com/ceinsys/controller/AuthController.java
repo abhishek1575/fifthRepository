@@ -1,37 +1,39 @@
 package com.ceinsys.controller;
 
+import java.util.Optional;
 
-import com.ceinsys.Service.UserService;
-import com.ceinsys.config.JWTUtil;
-import com.ceinsys.dto.AuthResponse;
-import com.ceinsys.model.AuthRequest;
-import com.ceinsys.model.User;
-import com.ceinsys.repo.UserRepository;
+
+import com.ceinsys.config.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.AuthenticationException;
 
-import java.util.Optional;
+import com.ceinsys.dto.AuthResponse;
+import com.ceinsys.model.AuthRequest;
+import com.ceinsys.model.User;
+import com.ceinsys.repo.UserRepository;
 
-
+@CrossOrigin(origins = "*",allowedHeaders = "*")
+//@CrossOrigin(origins = "http://localhost:3000/")
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
     @Autowired
     private AuthenticationManager authenticationManager;
 
     @Autowired
-    private UserService userService;
+    private com.ceinsys.service.UserService userDetailsService;
 
     @Autowired
-    private JWTUtil jwtUtil;
+    private JwtUtil jwtUtil;
 
     @Autowired
     private UserRepository userRepository;
@@ -41,63 +43,83 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest authRequest){
-        try{
-            Authentication authentication = authenticationManager.authenticate(
+        try {
+            Authentication authenticate = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(authRequest.getEmail(), authRequest.getPassword()));
 
-                    if(authentication.isAuthenticated()){
-                        final UserDetails userDetails = userService.loadUserByUsername(authRequest.getEmail());
-                        User user = userService.findUserByEmail(authRequest.getEmail());
-                        final String jwt = jwtUtil.getToken(authRequest.getEmail(), user.getRole());
+            if(authenticate.isAuthenticated()) {
 
-                        String role = user.getRole().toString();
+                final UserDetails userDetails = userDetailsService.loadUserByUsername(authRequest.getEmail());
 
-                        AuthResponse authResponse = new AuthResponse(
-                            user.getId(),
-                                user.getName(),
-                                user.getEmail(),
-                                role,
-                                jwt
-                        );
+                User user = userDetailsService.findUserbyEmail(authRequest.getEmail());
+                //final String jwt = jwtUtil.generateToken(userDetails.getUsername(), userRepository.findByEmail(authRequest.getEmail()).get().getRole());
+                final String jwt = jwtUtil.generateToken(authRequest.getEmail(), user.getRole());
+                //  User user = userDetailsService.findUserbyEmail(authRequest.getEmail());
 
-                        return ResponseEntity.ok(authResponse);
-                    }else{
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid User Request");
-                    }
+                String role = user.getRole().toString();
 
-    } catch (AuthenticationException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid User Request");
+                AuthResponse authResponse = new AuthResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        role,
+                        jwt
+                );
+                return ResponseEntity.ok(authResponse);
+
+
+            } else {
+                // If authentication fails
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Invalid user request");
+            }
+        } catch (AuthenticationException e) {
+            // Handle authentication exception
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid user request");
         }
-}
+
+
+    }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user){
+    public ResponseEntity<?> register(@RequestBody User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        //  user.setPassword(user.getPassword());
         userRepository.save(user);
-        return ResponseEntity.ok("User Added Successfully");
-
+        return ResponseEntity.ok("User registered successfully");
     }
 
-    @PostMapping("/forgotPassword")
-    public ResponseEntity<?> forgetPassword(@RequestParam String email, @RequestParam String password){
+
+
+    //Function to forget password
+    @PostMapping("/forgetPassword")
+    public ResponseEntity<?> forgetPassword(@RequestParam String email, @RequestParam String password) {
+        // Trim the email to remove any leading/trailing whitespace
         email = email.trim();
 
-        System.out.println("Searching for user With email"+ email);
-        Optional<User> optionalUser = userRepository.findByEmail(email);
-        if(optionalUser.isPresent()){
-            User user  = optionalUser.get();
-            try{
+        // Log the email being searched
+        System.out.println("Searching for user with email: " + email);
+
+        Optional<User> userInfo = userRepository.findByEmailId(email);
+
+        if (userInfo.isPresent()) {
+            User user = userInfo.get();
+            try {
+                // Encode the new password before saving
                 user.setPassword(passwordEncoder.encode(password));
                 userRepository.save(user);
-                return ResponseEntity.ok("Password Change Successfully");
-            }catch (Exception e){
+                return ResponseEntity.ok("Password changed successfully");
+            } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Unexpected Error"+ e.getMessage());
+                        .body("Unexpected error: " + e.getMessage());
             }
-        }else{
-            System.out.println("User not found"+email);
+        } else {
+            // Log that the user was not found
+            System.out.println("User not found for email: " + email);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("User Not Found");
+                    .body("User not found");
         }
     }
+
 }

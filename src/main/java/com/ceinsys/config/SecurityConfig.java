@@ -1,6 +1,6 @@
 package com.ceinsys.config;
 
-import com.ceinsys.Service.UserService;
+import com.ceinsys.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,54 +16,51 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
- @Autowired
- private JwtRequestFilter jwtRequestFilter;
 
- public void setJwtRequestFilter (JwtRequestFilter jwtRequestFilter){
+    @Autowired
+    private JwtRequestFilter jwtRequestFilter;
+
+    public void setJwtFilter(JwtRequestFilter jwtRequestFilter) {
         this.jwtRequestFilter = jwtRequestFilter;
- }
- @Bean
- public UserDetailsService userDetailsService(){
-     return new UserService();
- }
+    }
 
- @Bean
- public SecurityFilterChain securityFilterChain (HttpSecurity httpSecurity) throws Exception{
+    @Bean
+    public UserDetailsService userDetailsService(){
+        return new UserService();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity.csrf(csrf->csrf.disable())
-                .authorizeHttpRequests(auth-> auth
-                        .requestMatchers("/auth/*", "/auth/*/*")
+                .authorizeHttpRequests(auth->auth
+                        .requestMatchers("/auth/*","/auth/*/*")
                         .permitAll()
                         .anyRequest().authenticated())
-                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
 
- }
-@Bean
- public PasswordEncoder passwordEncoder(){
-     return new BCryptPasswordEncoder() ;
- }
-
- @Bean
-public AuthenticationProvider authenticationProvider(){
-     DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-     authenticationProvider.setUserDetailsService(userDetailsService());
-    authenticationProvider.setPasswordEncoder(passwordEncoder());
-    return authenticationProvider;
-}
-@Bean
-public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
-throws Exception{
-    return authenticationConfiguration.getAuthenticationManager();
-}
     @Bean
-    public HandlerMappingIntrospector mvcHandlerMappingIntrospector() {
-        return new HandlerMappingIntrospector();
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setUserDetailsService(userDetailsService());
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        return authenticationProvider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 }
