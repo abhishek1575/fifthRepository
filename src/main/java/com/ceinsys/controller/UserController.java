@@ -50,6 +50,12 @@ public class UserController {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
 
+        String EmailMassage = "Dear" + user.getName() + "\n\n" +"Welcome to Hardware Asset Management Tool.\n"
+                +"Please login to the portal"+
+                "Portal Link : "+"\n\n"
+                +"Best Regard,\n\n"
+                +"Hardware Management Tool";
+
         return ResponseEntity.ok("User registered successfully");
     }
 

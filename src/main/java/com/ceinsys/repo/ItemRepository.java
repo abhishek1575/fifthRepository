@@ -20,4 +20,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
         @Query(value="SELECT * FROM item WHERE sap_no = :sap_no", nativeQuery=true)
         Optional<Item> findBySap_no(Long sap_no);
+
+
+
 }
